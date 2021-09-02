@@ -1,1 +1,183 @@
+---
+- hosts: all
+  vars:
+    snap_name: "Q3-2021-Patching"
+    patch_oel_enable_repos: "FreshDirect_*"
+    patch_rhel_enable_repos: "rhel-7-server*,FreshDirect_el7_epel"
+    #patch_oel_kernel_version: "3.10.0-1127.(13.1|18.2).el7"
+    patch_oel_kernel_version: "3.10.0-1160.31.1.el7"
+    patch_rhel_kernel_version: "3.10.0-1160.31.1.el7"
+    patch_update: "update"
+    patch_check_update: "check-update"
+    patch_reboot_timeout: 600
+  serial: "{{ run_serial | default(0) }}"
+  tasks:
 
+  # don't let this play run with out a tag specified
+  - name: no tag
+    block:
+      - debug:
+          msg: "A tag must be sepcified.  Please run with --list-tags"
+        register: res
+
+      - meta: end_play
+        when: res is defined
+    run_once: true
+
+
+  # put the 'include_role' in a block so that the 'tags'
+  # applies to the block and not the include_role.  We do
+  # this so that all of the 'include_role' always runs no
+  # matter what tags are passed in.  Otherwise, tags applied
+  # to the 'include_role' would get passed along into the role
+  # and tasks in that role would need to match the specific
+  # tag, which is not what we want in this case.
+  - block:
+    - include_role:
+        name: yum_repos
+    tags: always
+
+  - name: set OEL vars
+    set_fact:
+      patch_enable_repos: "{{ patch_oel_enable_repos }}"
+      patch_kernel_version: "{{ patch_oel_kernel_version }}"
+      patch_yum_extras: ""
+    when: ansible_distribution == "OracleLinux"
+    tags: always
+
+  - name: set RHEL vars
+    set_fact:
+      patch_enable_repos: "{{ patch_rhel_enable_repos }}"
+      patch_kernel_version: "{{ patch_rhel_kernel_version }}"
+      patch_yum_extras: ""
+    when: ansible_distribution == "RedHat"
+    tags: always
+
+  - name: exclude java from manhattan
+    set_fact:
+      patch_yum_extras: " {{ patch_yum_extras }} --exclude=java* "
+    when: "'manhattan_dev' in group_names or 'manhattan_prd' in group_names"
+    tags: always
+
+  - name: exclude tomcat from prod cms
+    set_fact:
+      patch_yum_extras: " {{ patch_yum_extras }} --exclude=replatform_tomcat* "
+    when: "'ecomcmsprod' in group_names"
+    tags: always
+
+  - name: set yum command
+    set_fact:
+      patch_yum_command: 'yum --disablerepo=* --enablerepo="{{ patch_enable_repos }}" {{ patch_yum_extras }}'
+    tags: always
+
+  - name: make sure yum-utils is installed
+    shell: "{{ patch_yum_command }} -y install yum-utils"
+    register: patch_install_utils
+    changed_when: not "Nothing to do" in patch_install_utils.stdout
+    tags: always
+
+  - name: ensure OEL packages that cause dependency issues are not installed
+    package:
+      name: "{{ item }}"
+      state: absent
+    with_items:
+      - rhn-check
+      - rhn-client-tools
+      - rhn-setup
+      - rhn-setup-gnome
+      - rhnlib
+      - rhnsd
+      - yum-rhn-plugin
+      - yum-plugin-ulninfo
+      - kernel-uek
+    when: ansible_distribution == "OracleLinux"
+    tags: always
+
+  - name: yum check update
+    shell: "{{ patch_yum_command }} {{ patch_check_update }}"
+    register: patch_check_update
+    failed_when: patch_check_update.rc != 0 and patch_check_update.rc != 100
+    changed_when: patch_check_update.rc != 0
+    tags: check
+
+  - name: cleanup yum
+    shell: "yum clean all; rm -fr /var/cache/yum"
+    tags: clean
+
+  - name: yum download only
+    shell: "{{ patch_yum_command }} {{ patch_update }} --downloadonly"
+    tags: download
+
+  - name: Mute Solarwinds alerts for host
+    sw_alerts:
+      hostname: "{{ inventory_hostname }}"
+      mute_alerts: true
+    delegate_to: 127.0.0.1
+    no_log: true
+    tags: reboot, mute
+
+  - name: Take snapshot
+    snapshot:
+      hostname: "{{ inventory_hostname }}"
+      snap_name: "{{ snap_name }}"
+    delegate_to: 127.0.0.1
+    tags: snapshot
+
+  - name: pacth the system
+    shell: "{{ patch_yum_command }} -y {{ patch_update }}"
+    tags: patch
+
+  - name: clean up old kernels
+    shell: "/usr/bin/package-cleanup -y --oldkernels --count=1"
+    tags: patch
+    ignore_errors: yes
+
+  - name: make sure we boot into the newest kernel
+    shell: grub2-set-default 0
+    tags: patch
+
+  - name: reboot
+    reboot:
+      reboot_timeout: "{{patch_reboot_timeout}}"
+      connect_timeout: 300
+    tags: reboot
+
+  - name: Unmute Solarwinds alerts for host in 60 minutes after reboot
+    sw_alerts:
+      hostname: "{{ inventory_hostname }}"
+      mute_alerts: true
+      duration: 60
+    delegate_to: 127.0.0.1
+    no_log: true
+    tags: reboot
+
+  - name: Unmute Solarwinds alerts for host
+    sw_alerts:
+      hostname: "{{ inventory_hostname }}"
+      mute_alerts: false
+    delegate_to: 127.0.0.1
+    no_log: true
+    tags: unmute
+
+  - name: remove snapshot
+    remove_snapshot:
+      hostname: "{{ inventory_hostname }}"
+      snap_name: "{{ snap_name }}"
+    delegate_to: 127.0.0.1
+    tags: remove_snapshot
+
+  - name: post patching verify all pacakges updated
+    shell: "{{ patch_yum_command }} {{ patch_check_update}}"
+    register: patch_check_patched
+    failed_when: patch_check_patched.rc != 0 and patch_check_patched.rc != 100
+    changed_when: patch_check_patched.rc != 0
+    ignore_errors: yes
+    tags: patch
+
+  - name: verify running latest kernel
+    shell: uname -r
+    register: patch_check_kernel_ver
+    changed_when: not patch_check_kernel_ver.stdout is search(patch_kernel_version)
+
+    ignore_errors: yes
+    tags: patch, check
