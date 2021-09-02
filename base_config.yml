@@ -1,0 +1,21 @@
+---
+- include_role:
+    name: "{{ base_role }}"
+  loop:
+    - resolv
+    - yum_repos
+    - systemd
+    - sudo
+    - packages
+    - alert_logic
+    - snmp
+    - ntp
+    - limits
+    - sysctl
+    - realmd
+    - rsyslog
+    - deploy_sshkeys
+
+  loop_control:
+    loop_var: base_role
+  when: only_run|length == 0 or base_role in only_run
