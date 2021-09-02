@@ -1,0 +1,42 @@
+---
+- hosts: all
+  strategy: free
+  vars:
+    only_run: []
+    my_delegate: 127.0.0.1
+  tasks:
+
+    - include: base_linux.yml
+
+    - include_role:
+        name: "{{ my_role }}"
+      loop: "{{ all_roles }}"
+      loop_control:
+        loop_var: my_role
+      when: all_roles is defined and (only_run|length == 0 or my_role in only_run)
+
+    # check to see if 'requests' module is installed on target
+    - name: check where to run checkin
+      shell: '/usr/bin/env python -c "import requests"'
+      register: python_requests_installed
+      changed_when: false
+      failed_when: false
+      check_mode: no
+
+    # try to offload foreman checkin to remote hosts when we can
+    - name: set checkin delegate_to
+      set_fact:
+        my_delegate: "{{ inventory_hostname }}"
+      when: python_requests_installed.rc == 0
+      changed_when: false
+      check_mode: no
+
+
+    # send data to foreman.  Don't fail if this fails for any reason
+    - name: check in to foreman
+      foreman_checkin:
+        hostname: "{{ inventory_hostname }}"
+        os_name: "{{ ansible_distribution }}"
+        os_version: "{{ ansible_distribution_version }}"
+      delegate_to: "{{ my_delegate }}"
+      ignore_errors: yes
