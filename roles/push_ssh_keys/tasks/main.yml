@@ -1,0 +1,22 @@
+---
+- name: merge all the ssh key lists
+  set_fact:
+    deploy_sshkeys__authorized_all: "{{ deploy_sshkeys__authorized_common + deploy_sshkeys__authorized_group + deploy_sshkeys__authorized_host }}"
+    deploy_sshkeys__key_files_all: "{{ deploy_sshkeys__key_files_common + deploy_sshkeys__key_files_group + deploy_sshkeys__key_files_host }}"
+
+
+- name: Loop over all the users and set their authorized_keys
+  vars:
+    deploy_sshkeys__user: "{{ item.name }}"
+    deploy_sshkeys__all_keys: "{{ item.ssh_keys }}"
+  include_tasks: push_keys.yml
+  loop: "{{ deploy_sshkeys__authorized_all }}"
+
+
+- name: Loop over all the users and set their public/private keys
+  include_tasks: ssh_key_files.yml
+  vars:
+    user_name: "{{ item.name }}"
+    key_files: "{{ item.key_files }}"
+  when: item.key_files
+  loop: "{{ deploy_sshkeys__key_files_all }}"

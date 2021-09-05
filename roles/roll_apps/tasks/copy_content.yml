@@ -1,0 +1,34 @@
+---
+- name: "{{ deploy_app__src }}: determine where to set file permissions from"
+  set_fact:
+    deploy_app__synchronize_perms: yes
+  when: deploy_app__mode|length == 0
+
+- name: "{{ deploy_app__src }}: Copy content"
+  synchronize:
+    src: "{{ deploy_app__base_dir }}/{{ deploy_app__src }}"
+    dest: "{{ deploy_app__dest }}"
+    delete: "{{ deploy_app__sync_delete }}"
+    owner: no
+    group: no
+    perms: "{{ deploy_app__synchronize_perms | default('no') }}"
+    rsync_opts: "{{ deploy_app__rsync_opts }}"
+  delegate_to: "{{ deploy_app__source_host }}"
+
+- name: "{{ deploy_app__src }}: Create symlink"
+  file:
+    state: link
+    src: "{{ deploy_app__dest }}/{{ deploy_app__src }}"
+    path: "{{ deploy_app__link }}"
+    owner: "{{ deploy_app__owner }}"
+    group: "{{ deploy_app__group }}"
+  when: deploy_app__link | length > 0
+
+- name: "{{ deploy_app__src }}: set permissions on target"
+  file:
+    state: directory
+    recurse: yes
+    path: "{{ deploy_app__dest }}"
+    owner: "{{ deploy_app__owner }}"
+    group: "{{ deploy_app__group }}"
+    mode: "{{ deploy_app__mode | default(omit) }}"

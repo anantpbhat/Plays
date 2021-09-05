@@ -1,0 +1,9 @@
+---
+- name: "Set authorized key for {{ deploy_sshkeys__user }}"
+  authorized_key:
+    user: "{{ deploy_sshkeys__user }}"
+    state: present
+    key: "{{ deploy_sshkeys__my_key }}"
+  loop: "{{ deploy_sshkeys__all_keys }}"
+  loop_control:
+    loop_var: deploy_sshkeys__my_key

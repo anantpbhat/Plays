@@ -1,0 +1,25 @@
+---
+- name: Copy Out ssh Keys
+  copy:
+    src: "{{ item }}"
+    dest: "/root/.ssh/{{ item }}"
+    owner: root
+    group: root
+    mode: '0600'
+  loop:
+    - id_rsa_ansible_git
+    - id_rsa_ansible_git.pub
+
+- name: Set ssh Config
+  blockinfile:
+    path: /root/.ssh/config
+    block: |
+      Host gitlab.freshdirect.com
+        IdentityFile ~/.ssh/id_rsa_ansible_git
+        StrictHostKeyChecking no
+    create: yes
+
+- name: install git
+  package:
+    name: git
+    state: present

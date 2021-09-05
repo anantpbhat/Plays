@@ -1,0 +1,20 @@
+---
+- name: merge all the variables together
+  set_fact:
+    deploy_app__packages: "{{ deploy_app__packages_group | combine(deploy_app__packages_host) }}"
+
+- name: install all apps
+  vars:
+    deploy_app__src: "{{ item.key }}"
+    deploy_app__dest: "{{ item.value.dest }}"
+    deploy_app__owner: "{{ item.value.owner | default('root') }}"
+    deploy_app__group: "{{ item.value.group | default('root') }}"
+    deploy_app__mode: "{{ item.value.mode | default('') }}"
+    deploy_app__link: "{{ item.value.link | default('') }}"
+    deploy_app__push: "{{ item.value.push | default('False') }}"
+    deploy_app__sync_delete: "{{ item.value.sync_delete | default('yes') }}"
+    deploy_app__rsync_opts: "{{ item.value.rsync_opts | default(omit) }}"
+  include_tasks: copy_content.yml
+  when: deploy_app__push | bool
+  loop: "{{ deploy_app__packages | dict2items}}"
+
