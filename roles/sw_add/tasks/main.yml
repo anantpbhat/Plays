@@ -1,0 +1,32 @@
+---
+- name: Query SW Node to verify
+  sw_action:
+    nodename: "{{ inventory_hostname }}"
+    ip_address: "{{ ansible_default_ipv4.address }}"
+    device_func: "{{ device_function|default(omit) }}"
+    action: "query"
+  delegate_to: 127.0.0.1
+  register: swqout
+  ignore_errors: True
+
+- name: Add SW Node
+  sw_action:
+    nodename: "{{ inventory_hostname }}"
+    ip_address: "{{ ansible_default_ipv4.address }}"
+    device_func: "{{ device_function|default(omit) }}"
+    action: "add"
+  delegate_to: 127.0.0.1
+  register: swaout
+  when: swqout['module_stderr'] is defined
+
+- name: Print Output from SW Add task
+  debug:
+    msg: "{{ swaout }}"
+  when: swaout['msg'] is defined
+
+- name: Print debug message for existing SW node
+  debug:
+    msg:
+      - "{{ inventory_hostname }} already exists in SolarWinds!!!"
+      - "No Action taken!"
+  when: swaout['msg'] is not defined
