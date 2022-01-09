@@ -1,0 +1,42 @@
+---
+
+  - name: Check if Rapid7 is already installed
+    shell: "pgrep ir_agent"
+    register: psout
+    failed_when: psout.rc == 0
+    ignore_errors: True
+    changed_when: False
+
+  - name: Terminate for host if Rapid7 agent running
+    block:
+      - debug:
+          msg: "This Host {{ inventory_hostname }} already has rapid7 agent running"
+
+      - meta: end_host
+    when: psout.rc == 0
+
+  - name: Create Temp dir if not there
+    file:
+      path: "{{ rapid7__tmp_dir }}"
+      owner: "root"
+      group: "root"
+      mode: "0755"
+      state: directory
+
+  - name: Copy the rapid7 installer
+    copy:
+      dest: "{{ rapid7__tmp_dir }}/{{ rapid7__installer }}"
+      src: "{{ rapid7__installer }}"
+      owner: "root"
+      group: "root"
+      mode: "0544"
+
+  - name: Install Rapid7 Agent
+    shell: "{{ rapid7__tmp_dir }}/{{ rapid7__installer }} install_start --config_path {{ rapid7__tmp_dir }} --token {{ rapid7__token }}"
+    register: installout
+    notify: start rapid7
+
+  - name: Cleanup /var/tmp
+    file:
+      path: "{{ rapid7__tmp_dir }}"
+      state: absent
