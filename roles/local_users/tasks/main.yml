@@ -1,0 +1,23 @@
+---
+- name: merge all the user variables
+  set_fact:
+    local_users__all: "{{ local_users__common|default({}) | combine(local_users__group|default({}), local_users__host|default({})) }}"
+
+- name: Add the local users
+  user:
+    name: "{{ item.key }}"
+    uid: "{{ item.value.uid | default(omit) }}"
+    shell: "{{ item.value.shell | default('/bin/bash') }}"
+    group: "{{ item.value.group | default(omit) }}"
+    groups: "{{ item.value.groups | default(omit) }}"
+    password: "{{ item.value.password | default(omit) }}"
+    append: yes
+  loop: "{{ local_users__all | dict2items }}"
+
+- name: Create extra dirs
+  include_tasks: extra_dirs.yml
+  vars:
+    user_name: "{{ item.key }}"
+    extra_dirs: "{{ item.value.extra_dirs }}"
+  when: "'extra_dirs' in item.value"
+  loop: "{{ local_users__all | dict2items }}"
