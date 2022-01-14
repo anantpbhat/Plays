@@ -1,0 +1,32 @@
+---
+- name: Terminate for host if Printers not defined
+  block:
+    - debug:
+        msg: "This Host {{ inventory_hostname }} is not a Print Server"
+
+    - meta: end_host
+  when: printers is undefined
+
+- name: merge all the variables together
+  set_fact:
+    cups__printers: "{{ printers }}"
+    cups__printers_change: "{{ printers_change }}"
+
+- name: Loop thru Printers list
+  vars:
+    cups__printer: "{{ prnt.key }}"
+    cups__printer_uri: "{{ prnt.value.uri }}"
+    cups__printer_loc: "{{ prnt.value.location }}"
+    cups__printer_info: "{{ prnt.value.info }}"
+  include_tasks: add_printer.yml
+  loop: "{{ cups__printers | dict2items }}"
+  loop_control:
+    loop_var: prnt
+  when:  cups__printers_change | bool
+
+- name: restart cups
+  service:
+    name: cups
+    enabled: yes
+    state: restarted
+  when: cups__printers_change | bool
