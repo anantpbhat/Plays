@@ -1,0 +1,13 @@
+---
+
+- name: Check if printer exists
+  shell: "lpstat -a {{ cups__printer }}"
+  register: lpstatout
+  ignore_errors: True
+
+- name: Add printer if not there
+  block:
+    - shell: "lpadmin -p {{ cups__printer }} -E -v {{ cups__printer_uri }} -L {{ cups__printer_loc }} -D {{ cups__printer_info }}"
+    - debug:
+        msg: "{{ cups__printer }} Added..."
+  when: lpstatout.rc != 0
