@@ -1,0 +1,29 @@
+---
+- name: Install sudo package
+  package:
+    name: sudo
+    state: present
+
+- name: merge all the sudoers files variables
+  set_fact:
+    sudo__all_files: "{{ sudo__common|default([]) + sudo__group|default([]) + sudo__host|default([]) }}"
+
+- name: setup sudoers.d files
+  template:
+    dest: /etc/sudoers.d/{{ item }}
+    owner: root
+    group: root
+    mode: "0440"
+    src: "{{ item }}.j2"
+    validate: visudo -c -f %s
+  with_items: "{{ sudo__all_files }}"
+  
+  - name: Populate default /etc/sudoers if eligible
+    template:
+      dest: /etc/sudoers
+      owner: root
+      group: root
+      mode: "0440"
+      src: sudoers.j2
+      validate: visudo -c -f %s
+    when: sudo__default | bool
