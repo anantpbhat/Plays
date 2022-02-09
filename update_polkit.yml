@@ -1,0 +1,32 @@
+---
+- hosts: all
+  vars:
+    Temp: "/var/tmp"
+    polkit_rpm: "polkit-0.112-26.el7_9.1.x86_64.rpm"
+  tasks:
+    - yum:
+        name: "https://nj01lpcorefrm01.nj01/pulp/content/FreshDirect/Library/custom/OEL_repo/oel7_repo/getPackage/polkit-0.112-26.0.1.el7_9.1.x86_64.rpm"
+        state: present
+      when: ansible_distribution == "OracleLinux"
+
+    - name: Deploy polkit on RedHat 7 Servers
+      block:
+        - copy:
+            dest: "/var/tmp/{{ polkit_rpm }}"
+            src: "{{ polkit_rpm }}"
+            owner: "root"
+            group: "root"
+            mode: '0444'
+
+        - shell: "yum localinstall -y {{ Temp }}/{{ polkit_rpm }}"
+          register: rpmout
+          failed_when: rpmout.rc != 0
+          args:
+            warn: false
+
+        - name: Cleanup the polkit RPM
+          file:
+            path: "{{ Temp }}/{{ polkit_rpm }}"
+            state: absent
+      when: ansible_distribution == "RedHat"
+      
