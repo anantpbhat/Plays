@@ -1,0 +1,16 @@
+---
+
+  - name: Check SSSD
+    include_tasks: checksssd.yml
+    
+  - name: Deploy SSSD
+    include_tasks: deploysssd.yml
+    when: not sssd_installed | bool
+    
+  - name: Deploy AD Group / User Access
+    include_tasks: deployperms.yml
+    when: sssd_installed | bool
+    
+  - name: Fix AD user Home Dir Ownership
+    include_tasks:  fixownership.yml
+    when: Fix_Ownership | bool and sssd_installed | bool
