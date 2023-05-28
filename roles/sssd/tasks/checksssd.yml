@@ -1,0 +1,19 @@
+---
+
+  - name: Print realm list output
+    command: 'realm list'
+    register: realmlstout
+    ignore_errors: True
+    check_mode: no
+    
+  - name: Set Var and print output if SSSD installed
+    block:
+      - set_fact:
+          sssd_installed: True
+          
+      - debug: var=realmlstout.stdout_lines
+    when: realmlstout.rc == 0
+    
+  - name: Print error from realm cmd
+    debug: var=realmlstout.stderr_lines
+    when: realmlstout.rc != 0
