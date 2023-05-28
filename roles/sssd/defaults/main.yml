@@ -1,0 +1,8 @@
+---
+
+sssd_installed: False
+Fix_Ownership: False
+Linux_AD_Users: []
+Linux_AD_Grps:
+  - "Linux_SysEng"
+  - "Linux_NetEng"
