@@ -1,0 +1,33 @@
+---
+
+  - name: "Permission AD groups, Users for host login"
+    debug:
+      msg: "Permitting AD Groups / Users login access to {{ inventory_hostname }}..."
+      
+  - name: Permit AD Users to login
+    shell: "realm permit {{ AD_Usr }}"
+    args:
+      chdir: "/var/tmp"
+    loop: "{{ Linux_AD_Users }}"
+    loop_control:
+      loop_var: AD_Usr
+    when: not Linux_AD_Users == []
+    
+  - name: Permit AD Groups to login
+    shell: "realm permit -g {{ AD_Grp }}"
+    args:
+      chdir: "/var/tmp"
+    loop: "{{ Linux_AD_Grps }}"
+    loop_control:
+      loop_var: AD_Grp
+    notify: Restart SSSD service
+    
+  - name: Print realm list Output
+    block:
+      - command: 'realm list'
+        register: realmlstdout
+        check_mode: no
+      
+      - debug: var=realmlstdout.stdout_lines
+        when: realmlstdout.rc == 0
+     
