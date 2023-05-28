@@ -1,0 +1,33 @@
+---
+
+realm_domain: "abc.com"
+KRB5_DOMAIN: "ABC.COM"
+regx_dict:
+  '^use_fully_qualified_names': 'use_fully_qualified_nameds = False'
+  '^fallback_homedir': 'fallback_homedir = /home/%u'
+  
+groups_dict:
+  'abcadmin': '1053'
+etc_files:
+  issue:
+    path: '/etc/issue'
+    mode: '0644'
+    owner: 'root'
+    group: 'root'
+  issue.net:
+    path: '/etc/issue.net'
+    mode: '0644'
+    owner: 'root'
+    group: 'root'
+  sshd_config:
+    path: '/etc/ssh/sshd_config'
+    mode: '0600'
+    owner: 'root'
+    group: 'root'
+  ssh_config:
+    path: '/etc/ssh/ssh_config'
+    mode: '0644'
+    owner: 'root'
+    group: 'root'
+  realm_user: abc_linux_admin
+  realm_pass: !vault |
