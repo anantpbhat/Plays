@@ -1,0 +1,30 @@
+---
+
+  - name: Look for Home Dirs that need ownership fixed
+    block:
+      - shell: "ls /home | awk -F '/' '{print $1}' | xargs -i bash -c 'grep -q {} /etc/passwd || lslogins {}' | awk '/Username:/ {print $2}'"
+        register: adusers
+        changed_when: False
+        
+      - debug: var=adusers.stdout_lines
+      
+    rescue:
+      - debug: adusers.stderr_lines
+      
+  - name: Fix ownership for files with centrify UIDs
+    file:
+      path: "/home/{{ ADUser }}"
+      state: directory
+      owner: "{{ ADUser }}"
+      group: 'abadmin'
+      recurse: True
+    loop: "{{ adusers.stdout_lines }}"
+    loop_control:
+      loop_var: ADUser
+        
+  - name: List the Home dir
+    shell: " ls -ld /home/{{ HomeDir }}"
+    loop: "{{ adusers.stdout_lines }}"
+    loop_control:
+      loop_var: HomeDir
+  
