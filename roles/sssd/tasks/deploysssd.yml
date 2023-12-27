@@ -7,7 +7,7 @@
       state: present
       local: yes
     loop: "{{ groups_dict | dict2items }}"
-    
+
   - name: Deploy SSSD required pkgs
     yum:
       name:
@@ -22,13 +22,13 @@
         - "openldap-clients"
         - "policycoreutils-python"
       state: present
-      
+
   - name: Join to ABC AD Domain
     shell: 'echo "{{ realm_pass }}" | realm join -U {{ realm_user }} {{ realm_domain }} --computer-ou="OU=Linux_Computers,OU=Linux_SSSD,DC=abc,DC=com" --membership-software=adcli --server-software="active-directory" --client-software=sssd'
     args:
       chdir: "/var/tmp"
     register: realmout
-    
+
   - name: Edit sssd.conf with shortnames
     lineinfile:
       path: '/etc/sssd/sssd.conf'
@@ -37,8 +37,8 @@
       owner: 'root'
       group: 'root'
       mode: '0600'
-    loop: "{{ regx_dict | dict2items }}"
-    
+    with_dict: "{{ regx_dict }}"
+
   - name: Copy etc files
     copy:
       src: "{{ item.key }}"
@@ -47,17 +47,15 @@
       group: "{{ item.value.group }}"
       mode: "{{ item.value.mode }}"
       backup: True
-    loop: "{{ etc_files | dict2items }}"
-    
+    with_dict: "{{ etc_files }}"
+
   - name: Restart SSHD & Print
     block:
       - shell: "systemctl restart sshd; systemctl status sshd"
         register: sshout
-        
+
       - debug: var=sshout.stdout_lines
-      
+
   - name: Set installed Variable
     set_fact:
       sssd_installed: True
-    
-  
