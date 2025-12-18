@@ -3,7 +3,7 @@
 realm_domain: "abc.com"
 KRB5_DOMAIN: "ABC.COM"
 regx_dict:
-  '^use_fully_qualified_names': 'use_fully_qualified_nameds = False'
+  '^use_fully_qualified_names': 'use_fully_qualified_names = False'
   '^fallback_homedir': 'fallback_homedir = /home/%u'
   
 groups_dict:
